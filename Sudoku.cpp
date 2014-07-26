@@ -467,12 +467,12 @@ public:
     void print_board(std::ostream & out)
     {
         for (unsigned i = 0; i < 9; ++i)
-		{
+        {
             for (unsigned j = 0; j < 9; ++j)
                 out << matrix[i][j] << " ";
-			out << std::endl;
-		}
-		out << std::endl;
+            out << std::endl;
+        }
+        out << std::endl;
     }
 private:
     unsigned matrix[9][9];
@@ -696,16 +696,16 @@ private:
     bool _valid_dig(unsigned i, unsigned j, difficulty level)
     {
         unsigned val = puzzle.unset(i, j);
-		if (level == EASY)
-		{
-			Board bd = puzzle;
-			bd.hidden_fill();
-			if (bd.remaining())
-			{
-				puzzle.set(i, j, val);
-				return false;
-			}
-		}
+        if (level == EASY)
+        {
+            Board bd = puzzle;
+            bd.hidden_fill();
+            if (bd.remaining())
+            {
+                puzzle.set(i, j, val);
+                return false;
+            }
+        }
         for (unsigned num = 1; num <= 9; ++num)
         {
             if (num != val &&
@@ -714,7 +714,7 @@ private:
                 Board bd = puzzle;
                 bd.set(i, j, num);
                 bd.hidden_fill();
-				bd.advanced_fill();
+                bd.advanced_fill();
                 if (bd.backtrack())
                 {
                     puzzle.set(i, j, val);
@@ -723,7 +723,7 @@ private:
             }
         }
 
-		return true;
+        return true;
     }
 };
 
