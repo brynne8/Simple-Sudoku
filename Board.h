@@ -44,7 +44,7 @@ public:
     unsigned backtrack_count;
 
     Board()
-        : remains(81)
+        : remains(81), solutions(0)
     {
         for (unsigned i = 0; i < 9; ++i)
             for (unsigned j = 0; j < 9; ++j)
@@ -54,7 +54,7 @@ public:
             }
     }
     Board(unsigned seed)
-        : remains(81)
+        : remains(81), solutions(0)
     {
         for (unsigned i = 0; i < 9; ++i)
             for (unsigned j = 0; j < 9; ++j)
@@ -418,13 +418,17 @@ public:
     {
         return remains;
     }
-    bool backtrack()
+    unsigned solution_count()
+    {
+        return solutions;
+    }
+    bool backtrack(bool multiple = false)
     {
         backtrack_count = 0;
-        bool result = _btrack(remaining());
+        _btrack(remaining(), multiple);
         output << "And totally " << backtrack_count
                << " backtracking attempt(s)." << std::endl;
-        return result;
+        return solutions != 0;
     }
     bool assert(unsigned i, unsigned j, unsigned val)
     {
@@ -443,7 +447,7 @@ public:
 private:
     unsigned matrix[9][9];
     bitfield memory[9][9];
-    unsigned remains;
+    unsigned remains, solutions;
     BlankList Blank;
 
     static unsigned numFor(bitfield bit)
@@ -477,13 +481,23 @@ private:
             unique = true;
         return found;
     }
-    bool _btrack(unsigned depth)
+    bool _btrack(unsigned depth, const bool & multiple)
     {
         unsigned row, col;
         bool unique = false;
         if (!findMin(row, col, unique))
             if (!depth)
-                return true;
+            {
+                ++solutions;
+                if (multiple)
+                {
+                    if (solutions > 1)
+                        return true;
+                    return false;
+                }
+                else
+                    return true;
+            }
             else
                 return false;
 
@@ -497,7 +511,7 @@ private:
             if (mask_check(row, col, mask))
             {
                 set(row, col, num);
-                if (_btrack(depth-1))
+                if (_btrack(depth-1, multiple))
                     return true;
                 unset(row, col);
                 if (unique)
