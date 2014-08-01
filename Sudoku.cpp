@@ -161,12 +161,27 @@ public:
         }
         _board.print_board(std::cout);
         _answer = _board;
-        if (_solve())
+        if (_has_solution())
         {
-            if (!play)
+            unsigned solutions = _answer.solution_count();
+            if (!solutions)
+                std::cout << "Invalid puzzle!" << std::endl;
+            else
             {
-                std::cout << "The answer is:" << std::endl;
-                _answer.print_board(std::cout);
+                if (solutions > 1)
+                    std::cout << "Multiple solutions!" << std::endl;
+                if (!play)
+                {
+                    _answer = _board;
+                    output << "Solving puzzle:" << std::endl;
+                    _answer.hidden_fill();
+                    if (_answer.remaining())
+                        _answer.advanced_fill();
+                    if (_answer.remaining())
+                        _answer.backtrack();
+                    std::cout << "The answer is:" << std::endl;
+                    _answer.print_board(std::cout);
+                }
             }
         }
         else
@@ -221,14 +236,11 @@ private:
     Board _board;
     Board _answer;
 
-    bool _solve()
+    bool _has_solution()
     {
-        output << "Solving puzzle:" << std::endl;
         _answer.hidden_fill();
-        if (!_answer.remaining())
-            return true;
         _answer.advanced_fill();
-        if (_answer.backtrack())
+        if (_answer.backtrack(true))
             return true;
         else
             return false;
