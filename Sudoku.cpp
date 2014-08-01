@@ -164,24 +164,19 @@ public:
         if (_has_solution())
         {
             unsigned solutions = _answer.solution_count();
-            if (!solutions)
-                std::cout << "Invalid puzzle!" << std::endl;
-            else
+            if (solutions > 1)
+                std::cout << "Multiple solutions!" << std::endl;
+            if (!play)
             {
-                if (solutions > 1)
-                    std::cout << "Multiple solutions!" << std::endl;
-                if (!play)
-                {
-                    _answer = _board;
-                    output << "Solving puzzle:" << std::endl;
-                    _answer.hidden_fill();
-                    if (_answer.remaining())
-                        _answer.advanced_fill();
-                    if (_answer.remaining())
-                        _answer.backtrack();
-                    std::cout << "The answer is:" << std::endl;
-                    _answer.print_board(std::cout);
-                }
+                _answer = _board;
+                output << "Solving puzzle:" << std::endl;
+                _answer.hidden_fill();
+                if (_answer.remaining())
+                    _answer.advanced_fill();
+                if (_answer.remaining())
+                    _answer.backtrack();
+                std::cout << "The answer is:" << std::endl;
+                _answer.print_board(std::cout);
             }
         }
         else
