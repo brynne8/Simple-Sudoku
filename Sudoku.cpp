@@ -52,16 +52,28 @@ public:
         };
         static unsigned array[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
         for (unsigned i = 0; i < 9; ++i) {
-            unsigned diff = _random_by_level(level);
+            unsigned diff = _level_min(level);
             std::random_shuffle(array, array + 9);
             for (unsigned j = 0; j < diff; ++j) {
-                unsigned loc = base[i] + look_up[array[j]];
+                unsigned loc = base[(4 * i) % 9] + look_up[array[j]];
                 unsigned row = loc / 9, col = loc % 9;
-                if (!_valid_dig(row, col, level)) {
-                    ++diff;
-                    if (diff == 10)
-                        break;
-                }
+                _valid_dig(row, col, level);
+            }
+        }
+
+        unsigned control = 81;
+        if (level == MEDIUM) {
+            control = 45;
+        } else if (level == DIFFICULT) {
+            control = 65;
+        } else if (level == EVIL) {
+            control = 105;
+        }
+        for (unsigned k = 0; k < control; ++k) {
+            unsigned loc = std::rand() % 81;
+            unsigned row = loc / 9, col = loc % 9;
+            if (!puzzle.assert(row, col, 0)) {
+                _valid_dig(row, col, level);
             }
         }
     }
@@ -71,38 +83,37 @@ public:
 private:
     Board puzzle;
 
-    unsigned _random_by_level(difficulty level) {
-        unsigned random = 5;
-        int rnd = std::rand();
+    unsigned _level_min(difficulty level) {
+        unsigned limit;
+        unsigned rand = std::rand() % 4;
 
         switch (level) {
         case EASY:
-            random = rnd % 7;
-            if (random < 4 && rnd % 2)
-                random += std::rand() % 4;
-            random += 3;
+            limit = 2;
             break;
         case MEDIUM:
-            random = rnd % 5 + 3;
+            limit = 2;
             break;
         case DIFFICULT:
-            random = rnd % 5 + 4;
+            limit = 4 + rand;
             break;
         case EVIL:
-            random = rnd % 5 + 5;
+            limit = 6 + rand;
             break;
+        default:
+            limit = 0;
         }
-        return random;
+        return limit;
     }
 
-    bool _valid_dig(unsigned i, unsigned j, difficulty level) {
+    void _valid_dig(unsigned i, unsigned j, difficulty level) {
         unsigned val = puzzle.unset(i, j);
         if (level == EASY) {
             Board bd = puzzle;
             bd.hidden_fill();
             if (bd.remaining()) {
                 puzzle.set(i, j, val);
-                return false;
+                return;
             }
         } else {
             for (unsigned num = 1; num <= 9; ++num) {
@@ -114,19 +125,19 @@ private:
                     bd.advanced_fill();
                     if (bd.backtrack()) {
                         puzzle.set(i, j, val);
-                        return false;
+                        return;
                     }
                 }
             }
         }
-
-        return true;
     }
 };
 
 class Sudoku {
 public:
-    Sudoku(const char * name, bool play = false) {
+    bool unique_solution;
+
+    Sudoku(const char * name) {
         std::ifstream in(name);
         unsigned num = 0;
         for (unsigned i = 0; i < 9; ++i) {
@@ -137,23 +148,19 @@ public:
         }
         _board.print_board(std::cout);
         _answer = _board;
+        unique_solution = false;
         if (_has_solution()) {
             unsigned solutions = _answer.solution_count();
-            if (solutions > 1)
+            if (solutions == 1) {
+                unique_solution = true;
+            } else {
                 std::cout << "Multiple solutions!" << std::endl;
-            if (!play) {
-                _answer = _board;
-                output << "Solving puzzle:" << std::endl;
-                _answer.hidden_fill();
-                if (_answer.remaining())
-                    _answer.advanced_fill();
-                if (_answer.remaining())
-                    _answer.backtrack();
-                std::cout << "The answer is:" << std::endl;
+                std::cout << "One solution is: " << std::endl;
                 _answer.print_board(std::cout);
             }
-        } else
+        } else {
             std::cout << "The sudoku is not solvable!" << std::endl;
+        }
     }
     Sudoku(difficulty level, std::ostream & out) {
         output << "Generating new puzzle:" << std::endl;
@@ -192,6 +199,27 @@ public:
     bool is_complete() {
         return _board.remaining() == 0;
     }
+    void solve() {
+        _answer = _board;
+        output << "Solving puzzle:" << std::endl;
+        _answer.hidden_fill();
+        if (_answer.remaining())
+            _answer.advanced_fill();
+        if (_answer.remaining())
+            _answer.backtrack();
+        std::cout << "The answer is:" << std::endl;
+        _answer.print_board(std::cout);
+    }
+    void partial_solve() {
+        _answer = _board;
+        output << "Solving puzzle:" << std::endl;
+        _answer.hidden_fill();
+        if (_answer.remaining())
+            _answer.advanced_fill();
+        std::cout << "Logic solver gives:" << std::endl;
+        _answer.print_board(std::cout);
+        std::cout << _answer.remaining() << " cell(s) are left blank." << std::endl;
+    }
 private:
     Board _board;
     Board _answer;
@@ -207,53 +235,58 @@ private:
 };
 
 int main() {
+BG:
     char mode = 0;
-    std::cout << "Input puzzle file (I) or Generate one (G): ";
+    std::cout << "Import puzzle file (I) or Generate one (G): ";
     std::cin >> mode;
-    if (mode == 'I') {
+    if (mode == 'I' || mode == 'i') {
         char file[100];
-        bool flag;
         std::cout << "Please specify the file: ";
         std::cin >> file;
-AM:
-        std::cout << "Automatically (A) solve it or Manually (M): ";
-        std::cin >> mode;
-        if (mode == 'A')
-            flag = false;
-        else if (mode == 'M')
-            flag = true;
-        else {
-            std::cout << "Invalid Input!\n";
-            goto AM;
-        }
-
         system("cls");
-        Sudoku puzzle(file, flag);
-        if (flag) {
-            unsigned row, col, val;
-            while (!puzzle.is_complete()) {
-                std::cout << "Enter a position and a number (i, j, num): ";
-                std::cin >> row >> col >> val;
-                puzzle.play(row, col, val);
+        Sudoku puzzle(file);
+        if (puzzle.unique_solution) {
+CPM:
+            std::cout << "Solve it Completely (C) or Partially (P) or Manually (M): ";
+            std::cin >> mode;
+            if (mode == 'C' || mode == 'c') {
+                clock_t b = clock();
+                puzzle.solve();
+                std::cout << clock() - b << std::endl;
+            } else if (mode == 'P' || mode == 'p') {
+                puzzle.partial_solve();
+            } else if (mode == 'M' || mode == 'm') {
+                unsigned row, col, val;
+                while (!puzzle.is_complete()) {
+                    std::cout << "Enter a position and a number (i, j, num): ";
+                    std::cin >> row >> col >> val;
+                    puzzle.play(row, col, val);
+                }
+                std::cout << "You have completed the puzzle." << std::endl;
+            } else {
+                std::cout << "Invalid Input!\n";
+                goto CPM;
             }
-            std::cout << "You have completed the puzzle." << std::endl;
         }
-    } else if (mode == 'G') {
+    } else if (mode == 'G' || mode == 'g') {
         std::cout << "Which Level: Easy (E) Medium (M) Difficult(D) Evil(U) ";
         std::cin >> mode;
         difficulty level;
-        bool flag;
         switch (mode) {
         case 'E':
+        case 'e':
             level = EASY;
             break;
         case 'M':
+        case 'm':
             level = MEDIUM;
             break;
         case 'D':
+        case 'd':
             level = DIFFICULT;
             break;
         case 'U':
+        case 'u':
             level = EVIL;
             break;
         default:
@@ -263,16 +296,11 @@ AM:
 SP:
         std::cout << "Save it to a file (S) or Play now (P): ";
         std::cin >> mode;
-        if (mode == 'S')
-            flag = false;
-        else if (mode == 'P')
-            flag = true;
-        else {
-            std::cout << "Invalid Input!\n";
-            goto SP;
-        }
-
-        if (flag) {
+        if (mode == 'S' || mode == 's') {
+            std::ofstream ofs("Sudoku.out");
+            Sudoku puzzle(level, ofs);
+            std::cout << "Saved as Sudoku.out" << std::endl;
+        } else if (mode == 'P' || mode == 'p') {
             system("cls");
             Sudoku puzzle(level, std::cout);
             unsigned row, col, val;
@@ -283,10 +311,14 @@ SP:
             }
             std::cout << "You have completed the puzzle." << std::endl;
         } else {
-            std::ofstream ofs("Sudoku.out");
-            Sudoku puzzle(level, ofs);
-            std::cout << "Saved as Sudoku.out" << std::endl;
+            std::cout << "Invalid Input!\n";
+            goto SP;
         }
     }
-    system("pause");
+    std::cout << "Quit(Q) or Run Again(R)?" << std::endl;
+    std::cin >> mode;
+    if (mode == 'R' || mode == 'r') {
+        system("cls");
+        goto BG;
+    }
 }
