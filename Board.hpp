@@ -1,6 +1,8 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include <list>
+
 class BlankList {
 public:
     BlankList() {
@@ -140,16 +142,14 @@ public:
     }
     void hidden_fill() {
         bool again;
-        unsigned count = 0;
+        output << "Simple solving ";
         do {
             again = false;
-            ++count;
-            output << "Simple solving attempt " << count
-                   << " ..." << std::endl;
-            unsigned real_pos, i, j;
+            output << ".";
+            unsigned loc, i, j;
             for (unsigned pos = 0; pos < 81; ++pos) {
-                real_pos = 2 * pos % 81;
-                i = real_pos / 9, j = real_pos % 9;
+                loc = 2 * pos % 81;
+                i = loc / 9, j = loc % 9;
                 if (matrix[i][j]) continue;
                 bitfield possible = Blank.possible(i, j);
                 bitfield house = house_check(i, j);
@@ -162,6 +162,7 @@ public:
                 }
             }
         } while (again);
+        output << std::endl;
     }
     void candidate_check(unsigned i, unsigned j) {
         bitfield row_locked(0), col_locked(0), row_i(0), col_j(0);
@@ -315,8 +316,8 @@ public:
     }
     void advanced_fill() {
         bool again;
-        unsigned count = 0;
         unsigned sum;
+        output << "Advanced solving ";
         for (unsigned i = 0; i < 9; ++i)
             for (unsigned j = 0; j < 9; ++j)
                 if (!matrix[i][j])
@@ -324,18 +325,16 @@ public:
 
         do {
             again = false;
-            ++count;
-            output << "Advanced solving attempt " << count
-                   << " ..." << std::endl;
+            output << ".";
             sum = 0;
-            unsigned real_pos, i, j;
+            unsigned loc, i, j;
             for (i = 0; i < 9; ++i)
                 for (j = 0; j < 9; ++j)
                     sum += memory[i][j];
 
             for (unsigned pos = 0; pos < 81; ++pos) {
-                real_pos = 2 * pos % 81;
-                i = real_pos / 9, j = real_pos % 9;
+                loc = 2 * pos % 81;
+                i = loc / 9, j = loc % 9;
                 if (matrix[i][j]) continue;
                 candidate_check(i, j);
                 pair_check(i, j);
@@ -353,6 +352,7 @@ public:
                     sum -= memory[i][j];
             if (sum) again = true;
         } while (again);
+        output << std::endl;
     }
     unsigned remaining() {
         return remains;
@@ -362,6 +362,18 @@ public:
     }
     bool backtrack(bool multiple = false) {
         backtrack_count = 0;
+        for (unsigned i = 0; i < 9; ++i)
+            for (unsigned j = 0; j < 9; ++j) {
+                if (!matrix[i][j]) {
+                    unsigned count = bitCount(Blank.possible(i, j) & memory[i][j]);
+                    if (count < 3) {
+                        if (!count) return false;
+                        countList.push_front(9 * i + j);
+                    } else {
+                        countList.push_back(9 * i + j);
+                    }
+                }
+            }
         _btrack(remaining(), multiple);
         output << "And totally " << backtrack_count
                << " backtracking attempt(s)." << std::endl;
@@ -383,6 +395,7 @@ private:
     bitfield memory[9][9];
     unsigned remains, solutions;
     BlankList Blank;
+    std::list<int> countList;
 
     static unsigned numFor(bitfield bit) {
         unsigned num = 0;
@@ -393,22 +406,33 @@ private:
         return num;
     }
     bool findMin(unsigned& row, unsigned& col, bool & unique) {
-        bool found = false;
         unsigned count = 10;
 
-        for (unsigned i = 0; i < 9; ++i)
-            for (unsigned j = 0; j < 9; ++j) {
-                if (!matrix[i][j] && (bitCount(Blank.possible(i, j)
-                                               & memory[i][j])) < count) {
-                    count = bitCount(Blank.possible(i, j) & memory[i][j]);
-                    row = i;
-                    col = j;
-                    found = true;
+        std::list<int>::iterator it, chosen;
+        for (it = countList.begin(); it != countList.end(); ++it) {
+            int loc = *it;
+            row = loc / 9, col = loc % 9;
+            unsigned newCount = bitCount(Blank.possible(row, col) & memory[row][col]);
+            if(count > newCount) {
+                count = newCount;
+                chosen = it;
+                if (count == 1) {
+                    unique = true;
+                    break;
+                } else if (count == 0) {
+                    return false;
                 }
             }
-        if (count == 1)
-            unique = true;
-        return found;
+        }
+
+        if (count != 10) {
+            int loc = *chosen;
+            row = loc / 9, col = loc % 9;
+            countList.erase(chosen);
+            return true;
+        } else {
+            return false;
+        }
     }
     bool _btrack(unsigned depth, const bool & multiple) {
         unsigned row, col;
@@ -420,10 +444,12 @@ private:
                     if (solutions > 1)
                         return true;
                     return false;
-                } else
+                } else {
                     return true;
-            } else
+                }
+            } else {
                 return false;
+            }
 
         // Iterate through the possible values this cell could have
         unsigned num = 1;
@@ -433,7 +459,7 @@ private:
         while (mask != maskMax) {
             if (mask_check(row, col, mask)) {
                 set(row, col, num);
-                if (_btrack(depth-1, multiple))
+                if (_btrack(depth - 1, multiple))
                     return true;
                 unset(row, col);
                 if (unique)
@@ -444,6 +470,7 @@ private:
             mask *= 2;
             num++;
         }
+        _enlist(row, col);
         return false;
     }
     void _update(unsigned row, unsigned col) {
@@ -461,6 +488,9 @@ private:
             if (r != row && c != col && !matrix[r][c])
                 memory[r][c] &= Blank.possible(r, c);
         }
+    }
+    void _enlist(unsigned row, unsigned col) {
+        countList.push_front(9 * row + col);
     }
     bool _fill(bool is_big, unsigned block, unsigned num) {
         if (is_big) {
