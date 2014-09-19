@@ -38,6 +38,7 @@ private:
 class Board {
 public:
     unsigned backtrack_count;
+    unsigned one_step;
 
     Board()
         : remains(81), solutions(0) {
@@ -140,15 +141,15 @@ public:
 
         return 0;
     }
-    void hidden_fill() {
+    bool hidden_fill(bool hint = false) {
         bool again;
-        output << "Simple solving ";
+        output << std::endl << "Simple solving ";
         do {
             again = false;
             output << ".";
             unsigned loc, i, j;
             for (unsigned pos = 0; pos < 81; ++pos) {
-                loc = 2 * pos % 81;
+                loc = 4 * pos % 81;
                 i = loc / 9, j = loc % 9;
                 if (matrix[i][j]) continue;
                 bitfield possible = Blank.possible(i, j);
@@ -158,11 +159,17 @@ public:
                 bitfield to_check = decide(possible, house, row, col);
                 if (to_check) {
                     set(i, j, numFor(to_check));
-                    again = true;
+                    if (hint) {
+                        one_step = 9 * i + j;
+                        return true;
+                    }
+                    else {
+                        again = true;
+                    }
                 }
             }
         } while (again);
-        output << std::endl;
+        return false;
     }
     void candidate_check(unsigned i, unsigned j) {
         bitfield row_locked(0), col_locked(0), row_i(0), col_j(0);
@@ -314,10 +321,10 @@ public:
                 }
         }
     }
-    void advanced_fill() {
+    bool advanced_fill(bool hint = false) {
         bool again;
         unsigned sum;
-        output << "Advanced solving ";
+        output << std::endl << "Advanced solving ";
         for (unsigned i = 0; i < 9; ++i)
             for (unsigned j = 0; j < 9; ++j)
                 if (!matrix[i][j])
@@ -333,7 +340,7 @@ public:
                     sum += memory[i][j];
 
             for (unsigned pos = 0; pos < 81; ++pos) {
-                loc = 2 * pos % 81;
+                loc = 4 * pos % 81;
                 i = loc / 9, j = loc % 9;
                 if (matrix[i][j]) continue;
                 candidate_check(i, j);
@@ -343,8 +350,13 @@ public:
                 bitfield row = row_check(i, j, true);
                 bitfield col = col_check(i, j, true);
                 bitfield to_check = decide(possible, house, row, col);
-                if (to_check)
+                if (to_check) {
                     set(i, j, numFor(to_check), true);
+                    if (hint) {
+                        one_step = 9 * i + j;
+                        return true;
+                    }
+                }
             }
 
             for (i = 0; i < 9; ++i)
@@ -352,7 +364,7 @@ public:
                     sum -= memory[i][j];
             if (sum) again = true;
         } while (again);
-        output << std::endl;
+        return false;
     }
     unsigned remaining() {
         return remains;
@@ -375,12 +387,15 @@ public:
                 }
             }
         _btrack(remaining(), multiple);
-        output << "And totally " << backtrack_count
+        output << "\nAnd totally " << backtrack_count
                << " backtracking attempt(s)." << std::endl;
         return solutions != 0;
     }
     bool assert(unsigned i, unsigned j, unsigned val) {
         return matrix[i][j] == val;
+    }
+    unsigned get_num(unsigned i, unsigned j) {
+        return matrix[i][j];
     }
     void print_board(std::ostream & out) {
         for (unsigned i = 0; i < 9; ++i) {

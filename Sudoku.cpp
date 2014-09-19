@@ -199,7 +199,7 @@ public:
     bool is_complete() {
         return _board.remaining() == 0;
     }
-    void solve() {
+    void solve(bool verbose = true) {
         _answer = _board;
         output << "Solving puzzle:" << std::endl;
         _answer.hidden_fill();
@@ -207,8 +207,10 @@ public:
             _answer.advanced_fill();
         if (_answer.remaining())
             _answer.backtrack();
-        std::cout << "The answer is:" << std::endl;
-        _answer.print_board(std::cout);
+        if (verbose) {
+            std::cout << "The answer is:" << std::endl;
+            _answer.print_board(std::cout);
+        }
     }
     void partial_solve() {
         _answer = _board;
@@ -219,6 +221,32 @@ public:
         std::cout << "Logic solver gives:" << std::endl;
         _answer.print_board(std::cout);
         std::cout << _answer.remaining() << " cell(s) are left blank." << std::endl;
+    }
+    void next_step() {
+        Board ans = _board;
+        output << "\nFetching a hint:" << std::endl;
+        unsigned hint;
+        if (ans.hidden_fill(true)) {
+            hint = ans.one_step;
+            unsigned row = hint / 9, col = hint % 9;
+            std::cout << "SINGLE(NAKED SINGLE, HIDDGE SINGLE, FULL HOUSE): "
+                      << 'R' << row + 1 << 'C' << col + 1 << '='
+                      << ans.get_num(row, col) << std::endl;
+        } else if (ans.advanced_fill(true)) {
+            hint = ans.one_step;
+            unsigned row = hint / 9, col = hint % 9;
+            std::cout << "LOCKED CANDIDATE AND PAIR CHECK(2-(2+) ONLY): "
+                      << 'R' << row + 1 << 'C' << col + 1 << '='
+                      << ans.get_num(row, col) << std::endl;
+        } else {
+            do {
+                hint = std::rand() % 81;
+            } while (!ans.assert(hint / 9, hint % 9, 0));
+            unsigned row = hint / 9, col = hint % 9;
+            std::cout << "RANDOM HINT: "
+                      << 'R' << row + 1 << 'C' << col + 1 << '='
+                      << _answer.get_num(row, col) << std::endl;
+        }
     }
 private:
     Board _board;
@@ -244,23 +272,30 @@ BG:
         std::cout << "Please specify the file: ";
         std::cin >> file;
         system("cls");
+        clock_t b = clock();
         Sudoku puzzle(file);
+        std::cout << clock() - b << std::endl;
         if (puzzle.unique_solution) {
 CPM:
             std::cout << "Solve it Completely (C) or Partially (P) or Manually (M): ";
             std::cin >> mode;
             if (mode == 'C' || mode == 'c') {
-                clock_t b = clock();
                 puzzle.solve();
-                std::cout << clock() - b << std::endl;
             } else if (mode == 'P' || mode == 'p') {
                 puzzle.partial_solve();
             } else if (mode == 'M' || mode == 'm') {
+                puzzle.solve(false);
                 unsigned row, col, val;
                 while (!puzzle.is_complete()) {
-                    std::cout << "Enter a position and a number (i, j, num): ";
-                    std::cin >> row >> col >> val;
-                    puzzle.play(row, col, val);
+                    std::cout << "Continue(C) or get a Hint(H)?" << std::endl;
+                    std::cin >> mode;
+                    if (mode == 'C' || mode == 'c') {
+                        std::cout << "Enter a position and a number (Row, Column, Number): ";
+                        std::cin >> row >> col >> val;
+                        puzzle.play(--row, --col, val);
+                    } else {
+                        puzzle.next_step();
+                    }
                 }
                 std::cout << "You have completed the puzzle." << std::endl;
             } else {
@@ -303,11 +338,18 @@ SP:
         } else if (mode == 'P' || mode == 'p') {
             system("cls");
             Sudoku puzzle(level, std::cout);
+            puzzle.solve(false);
             unsigned row, col, val;
             while (!puzzle.is_complete()) {
-                std::cout << "Enter a position and a number (i, j, num): ";
-                std::cin >> row >> col >> val;
-                puzzle.play(row, col, val);
+                std::cout << "Continue(C) or get a Hint(H)? ";
+                std::cin >> mode;
+                if (mode == 'C' || mode == 'c') {
+                    std::cout << "Enter a position and a number (Row, Column, Number): ";
+                    std::cin >> row >> col >> val;
+                    puzzle.play(--row, --col, val);
+                } else {
+                    puzzle.next_step();
+                }
             }
             std::cout << "You have completed the puzzle." << std::endl;
         } else {
@@ -322,3 +364,4 @@ SP:
         goto BG;
     }
 }
+
