@@ -3,9 +3,9 @@
 
 #include <list>
 
-class BlankList {
+class Candidate {
 public:
-    BlankList() {
+    Candidate() {
         for (unsigned i = 0; i < 9; ++i)
             rows[i] = cols[i] = allSet;
         for (unsigned i = 0; i < 3; ++i)
@@ -29,6 +29,16 @@ public:
 
     bitfield possible(unsigned i, unsigned j) {
         return rows[i] & cols[j] & blocks[i/3][j/3];
+    }
+
+    bitfield row(unsigned i) {
+        return rows[i];
+    }
+    bitfield col(unsigned j) {
+        return cols[j];
+    }
+    bitfield block(unsigned i, unsigned j) {
+        return blocks[i/3][j/3];
     }
 private:
     bitfield rows[9], cols[9];
@@ -81,7 +91,7 @@ public:
         return Blank.possible(i, j) & mask & memory[i][j];
     }
     bitfield house_check(unsigned i, unsigned j, bool advanced = false) {
-        bitfield house_hidden = allSet;
+        bitfield house_hidden = Blank.block(i, j);
         unsigned row_base = i / 3 * 3;
         unsigned col_base = j / 3 * 3;
         for (unsigned row = row_base; row < row_base + 3; ++row)
@@ -93,14 +103,14 @@ public:
         return house_hidden;
     }
     bitfield row_check(unsigned i, unsigned j, bool advanced = false) {
-        bitfield row_hidden = allSet;
+        bitfield row_hidden = Blank.row(i);
         for (unsigned col = 0; col < 9; ++col)
             if (!matrix[i][col] && col != j)
                 row_hidden &= advanced ? ~memory[i][col] : ~Blank.possible(i, col);
         return row_hidden;
     }
     bitfield col_check(unsigned i, unsigned j, bool advanced = false) {
-        bitfield col_hidden = allSet;
+        bitfield col_hidden = Blank.col(j);
         for (unsigned row = 0; row < 9; ++row)
             if (!matrix[row][j] && row != i)
                 col_hidden &= advanced ? ~memory[row][j] : ~Blank.possible(row, j);
@@ -162,8 +172,7 @@ public:
                     if (hint) {
                         one_step = 9 * i + j;
                         return true;
-                    }
-                    else {
+                    } else {
                         again = true;
                     }
                 }
@@ -366,6 +375,35 @@ public:
         } while (again);
         return false;
     }
+    bool reasonable(unsigned i, unsigned j) {
+        bitfield check_criterion = Blank.row(i);
+        for (unsigned col = 0; col < 9; ++col)
+            if (!matrix[i][col])
+                check_criterion &= ~(Blank.possible(i, col) & memory[i][col]);
+        if (check_criterion)
+            return false;
+
+
+        check_criterion = Blank.col(j);
+        for (unsigned row = 0; row < 9; ++row)
+            if (!matrix[row][j])
+                check_criterion &= ~(Blank.possible(row, j) & memory[row][j]);
+        if (check_criterion)
+            return false;
+
+        check_criterion = Blank.block(i, j);
+        unsigned row_base = i / 3 * 3, col_base = j / 3 * 3;
+        for (unsigned row = row_base; row < row_base + 3; ++row) {
+            for (unsigned col = col_base; col < col_base + 3; ++col) {
+                if (!matrix[row][col])
+                    check_criterion &= ~(Blank.possible(row, col) & memory[row][col]);
+            }
+        }
+        if (check_criterion)
+            return false;
+
+        return true;
+    }
     unsigned remaining() {
         return remains;
     }
@@ -409,7 +447,7 @@ private:
     unsigned matrix[9][9];
     bitfield memory[9][9];
     unsigned remains, solutions;
-    BlankList Blank;
+    Candidate Blank;
     std::list<int> countList;
 
     static unsigned numFor(bitfield bit) {
@@ -474,7 +512,7 @@ private:
         while (mask != maskMax) {
             if (mask_check(row, col, mask)) {
                 set(row, col, num);
-                if (_btrack(depth - 1, multiple))
+                if (reasonable(row, col) && _btrack(depth - 1, multiple))
                     return true;
                 unset(row, col);
                 if (unique)
@@ -558,3 +596,4 @@ private:
 };
 
 #endif
+

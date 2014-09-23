@@ -239,6 +239,7 @@ public:
                       << 'R' << row + 1 << 'C' << col + 1 << '='
                       << ans.get_num(row, col) << std::endl;
         } else {
+            std::srand(static_cast<unsigned>(std::time(0)));
             do {
                 hint = std::rand() % 81;
             } while (!ans.assert(hint / 9, hint % 9, 0));
