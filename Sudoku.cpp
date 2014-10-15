@@ -68,6 +68,8 @@ public:
             control = 65;
         } else if (level == EVIL) {
             control = 105;
+        } else if (level == DEFAULT) {
+            control = 300;
         }
         for (unsigned k = 0; k < control; ++k) {
             unsigned loc = std::rand() % 81;
@@ -201,7 +203,7 @@ public:
     }
     void solve(bool verbose = true) {
         _answer = _board;
-        output << "Solving puzzle:" << std::endl;
+        output << "\nSolving puzzle:";
         _answer.hidden_fill();
         if (_answer.remaining())
             _answer.advanced_fill();
@@ -214,7 +216,7 @@ public:
     }
     void partial_solve() {
         _answer = _board;
-        output << "Solving puzzle:" << std::endl;
+        output << "\nSolving puzzle:";
         _answer.hidden_fill();
         if (_answer.remaining())
             _answer.advanced_fill();
@@ -224,7 +226,7 @@ public:
     }
     void next_step() {
         Board ans = _board;
-        output << "\nFetching a hint:" << std::endl;
+        output << "\n\nFetching a hint:";
         unsigned hint;
         if (ans.hidden_fill(true)) {
             hint = ans.one_step;
@@ -254,6 +256,7 @@ private:
     Board _answer;
 
     bool _has_solution() {
+        output << "\nChecking solutions:";
         _answer.hidden_fill();
         _answer.advanced_fill();
         if (_answer.backtrack(true))
